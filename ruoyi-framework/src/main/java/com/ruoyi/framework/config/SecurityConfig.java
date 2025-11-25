@@ -1,10 +1,14 @@
 package com.ruoyi.framework.config;
 
+import com.ruoyi.framework.security.wxone.WxOneAuthenticationProvider;
+import com.ruoyi.framework.web.service.UserDetailsByWxOneServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -23,7 +27,7 @@ import com.ruoyi.framework.security.handle.LogoutSuccessHandlerImpl;
 
 /**
  * spring security配置
- * 
+ *
  * @author ruoyi
  */
 @EnableMethodSecurity(prePostEnabled = true, securedEnabled = true)
@@ -35,7 +39,7 @@ public class SecurityConfig
      */
     @Autowired
     private UserDetailsService userDetailsService;
-    
+
     /**
      * 认证失败处理类
      */
@@ -53,7 +57,7 @@ public class SecurityConfig
      */
     @Autowired
     private JwtAuthenticationTokenFilter authenticationTokenFilter;
-    
+
     /**
      * 跨域过滤器
      */
@@ -65,6 +69,9 @@ public class SecurityConfig
      */
     @Autowired
     private PermitAllUrlProperties permitAllUrl;
+    @Autowired
+    @Qualifier("UserDetailsByWxOneService")
+    private UserDetailsByWxOneServiceImpl UserDetailsByWxOneService;
 
     /**
      * 身份验证实现
@@ -111,7 +118,7 @@ public class SecurityConfig
             .authorizeHttpRequests((requests) -> {
                 permitAllUrl.getUrls().forEach(url -> requests.antMatchers(url).permitAll());
                 // 对于登录login 注册register 验证码captchaImage 允许匿名访问
-                requests.antMatchers("/login", "/register", "/captchaImage").permitAll()
+                requests.antMatchers("/login", "/register", "/captchaImage","/kunyuan/**", "/kunyuan/**/**").permitAll()
                     // 静态资源，可匿名访问
                     .antMatchers(HttpMethod.GET, "/", "/*.html", "/**/*.html", "/**/*.css", "/**/*.js", "/profile/**").permitAll()
                     .antMatchers("/swagger-ui.html", "/swagger-resources/**", "/webjars/**", "/*/api-docs", "/druid/**").permitAll()
@@ -125,9 +132,15 @@ public class SecurityConfig
             // 添加CORS filter
             .addFilterBefore(corsFilter, JwtAuthenticationTokenFilter.class)
             .addFilterBefore(corsFilter, LogoutFilter.class)
+                .authenticationProvider(wxOneAuthenticationProvider())
             .build();
     }
-
+    @Bean
+    public AuthenticationProvider wxOneAuthenticationProvider() {
+        WxOneAuthenticationProvider wxOneAuthenticationProvider = new WxOneAuthenticationProvider();
+        wxOneAuthenticationProvider.setUserDetailsService(UserDetailsByWxOneService);
+        return wxOneAuthenticationProvider;
+    }
     /**
      * 强散列哈希加密实现
      */
